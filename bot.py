@@ -37,7 +37,7 @@ pwmR = None
 
 def setSpeeds():
     # Sends global speeds to motor controller
-    # DOES NOT ACCEPT ARGUMETS, speed must be set using one of the motion control functions
+    # DOES NOT ACCEPT ARGUMENTS, speed must be set using one of the motion control functions
     global speedLeft, speedRight, delayBetweenCommands
     pwmL.ChangeDutyCycle(speedLeft)
     print("[PWM] Left speed: " + speedLeft + "%")
@@ -48,6 +48,7 @@ def setSpeeds():
 def stop():
     # Completly freeze in place
     global speedLeft, speedRight
+    print("stop() called")
     speedLeft = 0
     speedRight = 0
     setSpeeds()
@@ -56,6 +57,7 @@ def goForward(speed:int = 100):
     # Full-speed forward movement, unless a speed is given
     # Both motors will be set to the same speed
     global speedLeft, speedRight
+    print("goForward(" + str(speed) + ") called")
     speedLeft = speed
     speedRight = speed
     setSpeeds()
@@ -65,6 +67,7 @@ def goBackwards(speed:int = 100):
     # Both motors will be set to the same speed
     # Global speeds will be set to the local -speed, since we'll be going backwards
     global speedLeft, speedRight
+    print("goBackwards(" + str(speed) + ") called")
     speedLeft = -speed
     speedRight = -speed
     setSpeeds()
@@ -74,6 +77,7 @@ def manevra(speedL:int = 0, speedR:int = 0):
     # Speeds default to 0
     # Can specify individual speeds for one or both motors, positive for forward movement and negative for backward movement
     global speedLeft, speedRight
+    print("manevra(" + str(speedL) + ", " + str(speedR) + ") called")
     speedLeft = speedL
     speedRight = speedR
     setSpeeds()
@@ -83,7 +87,17 @@ def manevraL(speed:int = 0):
     # Speed defaults to 0
     # Adresses
     global speedLeft
+    print("manevraL(" + str(speed) +") called")
     speedLeft = speed
+    setSpeeds()
+
+def manevraR(speed:int = 0):
+    # Custom speed maneuver LEFT motor
+    # Speed defaults to 0
+    # Adresses
+    global speedRight
+    print("manevraR(" + str(speed) +") called")
+    speedRight = speed
     setSpeeds()
 
 def setup():
@@ -91,21 +105,21 @@ def setup():
     GPIO.setmode(GPIO.BOARD)
     print("GPIO pin mode was set to GPIO.BOARD")
     GPIO.setup(pinHighL, GPIO.OUT)
-    print("Using pin " + str(pinHighL) + "as GPIO.OUT")
+    print("Using pin " + str(pinHighL) + " as GPIO.OUT")
     GPIO.setup(pinLowL, GPIO.OUT)
-    print("Using pin " + str(pinLowR) + "as GPIO.OUT")
+    print("Using pin " + str(pinLowR) + " as GPIO.OUT")
     GPIO.setup(pinHighR, GPIO.OUT)
-    print("Using pin " + str(pinHighR) + "as GPIO.OUT")
+    print("Using pin " + str(pinHighR) + " as GPIO.OUT")
     GPIO.setup(pinLowR, GPIO.OUT)
-    print("Using pin " + str(pinLowR) + "as GPIO.OUT")
+    print("Using pin " + str(pinLowR) + " as GPIO.OUT")
     GPIO.setup(pinPwmL, GPIO.OUT)
-    print("Using pin " + str(pinPwmL) + "as GPIO.OUT")
+    print("Using pin " + str(pinPwmL) + " as GPIO.OUT")
     GPIO.setup(pinPwmR, GPIO.OUT)
-    print("Using pin " + str(pinPwmR) + "as GPIO.OUT")
+    print("Using pin " + str(pinPwmR) + " as GPIO.OUT")
     pwmL = GPIO.PWM(pinPwmL, pwmFreq)
-    print("Initiated PWM instance on pin " + pinPwmL)
+    print("Initiated PWM instance on pin " + str(pinPwmL))
     pwmR = GPIO.PWM(pinPwmR, pwmFreq)
-    print("Initiated PWM instance on pin " + pinPwmR)
+    print("Initiated PWM instance on pin " + str(pinPwmR))
     pwmL.start(0)
     print("[PWM] Left speed: 0%")
     pwmR.start(0)
@@ -114,11 +128,17 @@ def setup():
 
 def reset():
     GPIO.cleanup()
+    print("GPIO was cleaned up.")
     setup()
 
 #############################
 ### Execution begins here ###
 #############################
 
-reset() # If the process gets killed in the middle of something, motors might still be rolling, so this resets whatever the robot is doing
-time.sleep(1) # Let's wait a second so the GPIO setup has some leeway to complete
+try:
+    reset() # If the process gets killed in the middle of something, motors might still be rolling, so this resets whatever the robot is doing
+    time.sleep(1) # Let's wait a second so the GPIO setup has some leeway to complete
+    goForward(100)
+except AttributeError:
+    pass
+# Write sum code here
