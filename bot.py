@@ -26,12 +26,12 @@ speedRight:int = 0 # percent
 ### Global pin variables
 # These store pin numbers for the high and low pins connected to the motors through the controller
 # They get sent to the controller when calling setPins()
-pinHighL = -1
-pinLowL = -1
-pinHighR = -1
-pinLowR = -1
-pinPwmL = -1
-pinPwmR = -1
+pinHighL = 38
+pinLowL = 37
+pinHighR = 35
+pinLowR = 36
+pinPwmL = 32
+pinPwmR = 31
 pwmL = None
 pwmR = None
 
@@ -39,10 +39,36 @@ def setSpeeds():
     # Sends global speeds to motor controller
     # DOES NOT ACCEPT ARGUMENTS, speed must be set using one of the motion control functions
     global speedLeft, speedRight, delayBetweenCommands
-    pwmL.ChangeDutyCycle(speedLeft)
-    print("[PWM] Left speed: " + speedLeft + "%")
-    pwmR.ChangeDutyCycle(speedRight)
-    print("[PWM] Right speed: " + speedRight + "%")
+    if speedLeft>0:
+        GPIO.output(pinHighL,GPIO.HIGH)
+        GPIO.output(pinLowL,GPIO.LOW)
+        pwmL.ChangeDutyCycle(speedLeft)
+        print("[PWM] Left speed: " + str(speedLeft) + "%")
+    elif speedLeft<0:
+        GPIO.output(pinHighL,GPIO.LOW)
+        GPIO.output(pinLowL,GPIO.HIGH)
+        pwmL.ChangeDutyCycle(-speedLeft)
+        print("[PWM] Left speed: " + str(speedLeft) + "%")
+    else:
+        GPIO.output(pinHighL,GPIO.LOW)
+        GPIO.output(pinLowL,GPIO.LOW)
+        pwmL.ChangeDutyCycle(0)
+        print("[PWM] Left speed: " + str(speedLeft) + "%")
+    if speedRight>0:
+        GPIO.output(pinHighR,GPIO.HIGH)
+        GPIO.output(pinLowR,GPIO.LOW)
+        pwmR.ChangeDutyCycle(speedRight)
+        print("[PWM] Right speed: " + str(speedRight) + "%")
+    elif speedRight<0:
+        GPIO.output(pinHighR,GPIO.LOW)
+        GPIO.output(pinLowR,GPIO.HIGH)
+        pwmR.ChangeDutyCycle(-speedRight)
+        print("[PWM] Right speed: " + str(speedRight) + "%")
+    else:
+        GPIO.output(pinHighR,GPIO.LOW)
+        GPIO.output(pinLowR,GPIO.LOW)
+        pwmR.ChangeDutyCycle(0)
+        print("[PWM] Right speed: " + str(speedRight) + "%")
     time.sleep(delayBetweenCommands)
 
 def stop():
@@ -139,6 +165,10 @@ try:
     reset() # If the process gets killed in the middle of something, motors might still be rolling, so this resets whatever the robot is doing
     time.sleep(1) # Let's wait a second so the GPIO setup has some leeway to complete
     goForward(100)
+    time.sleep(2)
+    goBackwards(100)
+    time.sleep(2)
+    stop()
 except AttributeError:
     pass
 # Write sum code here
