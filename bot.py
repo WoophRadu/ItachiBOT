@@ -1,6 +1,7 @@
 # Imports
 import time
 import importlib.util
+import wiringpi as wp
 
 # If script is running on the Raspberry Pi, we'll import RPi.GPIO
 # If script is running on Windows for development reasons, we'll import FakeRPi.GPIO
@@ -13,10 +14,18 @@ except ImportError:
 
 
 ### Tweakable constants
+# Loop cycle delay - How much to wait each main loop before entering the next one
+loopDelay = 0.05 # seconds
 # Responsiveness - This controls a buffer time between motion control commands, when sent to the controller
 delayBetweenCommands = 0.01 # seconds
 # PWM Frequency
 pwmFreq = 50 # Hz
+# Light Sensor Calibration Cycles
+calibCycles = 30
+# Absolute Minimum value that the sensors are allowed to take
+absoluteMinValue = 30
+# Delay between light sensor calibration cycles
+calibDelay = 0.1 # seconds
 
 ### Global speed variables
 # These store individual current speed for the motors, and they get sent to the controller when calling setSpeeds()
@@ -34,7 +43,11 @@ pinPwmL = 32
 pinPwmR = 31
 pwmL = None
 pwmR = None
-pinsSensor = [7,11]
+pinsSensor = [7, 11]
+sensorAmount = len(pinsSensor)
+sensorValue = [0, 0]
+calibMax = [0, 0]
+calibMin = [1000, 1000]
 
 ###################################
 ### Motor Controlling Functions ###
@@ -154,7 +167,12 @@ def setup():
     print("[PWM] Left speed: 0%")
     pwmR.start(0)
     print("[PWM] Right speed: 0%")
-    print("GPIO setup complete!")
+    print("RPi.GPIO setup complete!")
+    print("Setting up WiringPi for the line sensors...")
+    wp.wiringPiSetupPhys()
+    for pin in pinsSensor:
+        wp.pullUpDnControl(pin, wp.PUD_DOWN)
+    print("WiringPi setup complete!")
 
 def reset():
     GPIO.cleanup()
@@ -164,7 +182,48 @@ def reset():
 #############################
 ### Line Sensor Functions ###
 #############################
-# soon
+
+def pulseIn(pin):
+    wp.pinMode(pin, wp.OUTPUT)
+    wp.digitalWrite(pin, wp.HIGH)
+    startTime = wp.micros()
+    lastTime = startTime
+    wp.pinMode(pin, wp.INPUT)
+    while wp.digitalRead(pin) == 1:
+        lastTime = wp.micros()
+    return lastTime-startTime
+
+def sensorReadRaw():
+    i=0
+    for pin in pinsSensor:
+        sensorValue[i] = pulseIn(pin)
+        i=i+1
+
+def sensorOutput():
+    print(sensorValue)
+
+def calibrate():
+    global sensorValue
+    for i in range(0, calibCycles):
+        if calibMax[i] < sensorValue[i]:
+            calibMax = sensorValue[i]
+        if calibMin[i] > sensorValue[i] and sensorValue[i] > absoluteMinValue:
+            calibMin[i] = sensorValue[i]
+        time.sleep(calibDelay)
+
+def sensorRead():
+    global sensorValue
+    sensorReadRaw()
+    for i in range(0, sensorAmount):
+        calibDelta = calibMax[i] - calibMin[i]
+        x = 0
+        if calibDelta != 0:
+            x = (sensorValue[i] - calibMin[i]) * 1000 / calibDelta
+        if x < 0:
+            x = 0
+        elif x>1000:
+            x = 1000
+        sensorValue[i] = int(x)
 
 #############################
 ### Execution begins here ###
@@ -173,11 +232,12 @@ def reset():
 try:
     reset() # If the process gets killed in the middle of something, motors might still be rolling, so this resets whatever the robot is doing
     time.sleep(1) # Let's wait a second so the GPIO setup has some leeway to complete
-    goForward(100)
-    time.sleep(2)
-    goBackwards(100)
-    time.sleep(2)
-    stop()
+    calibrate()
+    print("Entering main loop:")
+    while True:
+        sensorRead()
+        out()
+        time.sleep(loopDelay)
 except AttributeError:
     pass
 # Write sum code here
