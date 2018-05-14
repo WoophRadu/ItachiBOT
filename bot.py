@@ -14,14 +14,14 @@ except ImportError:
 
 ### Tweakable constants
 # Responsiveness - This controls a buffer time between motion control commands, when sent to the controller
-delayBetweenCommands:int = 0.01 # seconds
+delayBetweenCommands = 0.01 # seconds
 # PWM Frequency
 pwmFreq = 50 # Hz
 
 ### Global speed variables
 # These store individual current speed for the motors, and they get sent to the controller when calling setSpeeds()
-speedLeft:int = 0 # percent
-speedRight:int = 0 # percent
+speedLeft = 0 # percent
+speedRight = 0 # percent
 
 ### Global pin variables
 # These store pin numbers for the high and low pins connected to the motors through the controller
@@ -34,7 +34,11 @@ pinPwmL = 32
 pinPwmR = 31
 pwmL = None
 pwmR = None
+pinsSensor = [7,11]
 
+###################################
+### Motor Controlling Functions ###
+###################################
 def setSpeeds():
     # Sends global speeds to motor controller
     # DOES NOT ACCEPT ARGUMENTS, speed must be set using one of the motion control functions
@@ -79,7 +83,7 @@ def stop():
     speedRight = 0
     setSpeeds()
 
-def goForward(speed:int = 100):
+def goForward(speed = 100):
     # Full-speed forward movement, unless a speed is given
     # Both motors will be set to the same speed
     global speedLeft, speedRight
@@ -88,7 +92,7 @@ def goForward(speed:int = 100):
     speedRight = speed
     setSpeeds()
 
-def goBackwards(speed:int = 100):
+def goBackwards(speed = 100):
     # Full-speed backwards movement, unless a speed is given
     # Both motors will be set to the same speed
     # Global speeds will be set to the local -speed, since we'll be going backwards
@@ -98,7 +102,7 @@ def goBackwards(speed:int = 100):
     speedRight = -speed
     setSpeeds()
 
-def manevra(speedL:int = 0, speedR:int = 0):
+def manevra(speedL = 0, speedR = 0):
     # Custom speed maneuver for both motors
     # Speeds default to 0
     # Can specify individual speeds for one or both motors, positive for forward movement and negative for backward movement
@@ -108,7 +112,7 @@ def manevra(speedL:int = 0, speedR:int = 0):
     speedRight = speedR
     setSpeeds()
 
-def manevraL(speed:int = 0):
+def manevraL(speed = 0):
     # Custom speed maneuver LEFT motor
     # Speed defaults to 0
     # Adresses
@@ -117,7 +121,7 @@ def manevraL(speed:int = 0):
     speedLeft = speed
     setSpeeds()
 
-def manevraR(speed:int = 0):
+def manevraR(speed = 0):
     # Custom speed maneuver LEFT motor
     # Speed defaults to 0
     # Adresses
@@ -156,6 +160,11 @@ def reset():
     GPIO.cleanup()
     print("GPIO was cleaned up.")
     setup()
+
+#############################
+### Line Sensor Functions ###
+#############################
+# soon
 
 #############################
 ### Execution begins here ###
