@@ -203,16 +203,18 @@ def sensorOutput():
     print(sensorValue)
 
 def calibrate():
-    global sensorValue
-    for i in range(0, calibCycles):
-        if calibMax[i] < sensorValue[i]:
-            calibMax = sensorValue[i]
-        if calibMin[i] > sensorValue[i] and sensorValue[i] > absoluteMinValue:
-            calibMin[i] = sensorValue[i]
-        time.sleep(calibDelay)
+    global sensorValue, calibMax, calibMin
+    for j in range(0, calibCycles):
+        sensorReadRaw()
+        for i in range(0, sensorAmount):
+            if calibMax[i] < sensorValue[i]:
+                calibMax[i] = sensorValue[i]
+            if calibMin[i] > sensorValue[i] and sensorValue[i] > absoluteMinValue:
+                calibMin[i] = sensorValue[i]
+            time.sleep(calibDelay)
 
 def sensorRead():
-    global sensorValue
+    global sensorValue, calibMax, calibMin
     sensorReadRaw()
     for i in range(0, sensorAmount):
         calibDelta = calibMax[i] - calibMin[i]
@@ -236,7 +238,7 @@ try:
     print("Entering main loop:")
     while True:
         sensorRead()
-        out()
+        sensorOutput()
         time.sleep(loopDelay)
 except AttributeError:
     pass
