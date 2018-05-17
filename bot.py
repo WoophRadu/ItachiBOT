@@ -47,12 +47,13 @@ pinPwmL = 8
 pinPwmR = 7
 pwmL = None
 pwmR = None
-pinsSensor = [29,31,33,35,37,38]
+
+pinsSensor = [38,37,35,33,31,29,36,40]
 sensorAmount = len(pinsSensor)
-sensorValue = [0,0,0,0,0,0]
-calibMax = [0,0,0,0,0,0]
-calibMin = [1000, 1000,1000,1000,1000,1000]
-speedMultiplier = 1
+sensorValue = [0,0,0,0,0,0,0,0]
+calibMax = [0,0,0,0,0,0,0,0]
+calibMin = [1000, 1000,1000,1000,1000,1000,1000,1000]
+speedMultiplier = 1.0
 currentTick = 0
 currentMode = 0
 currentModeStartTick = 0
@@ -76,32 +77,26 @@ def setSpeeds():
         GPIO.output(pinHighL,GPIO.HIGH)
         GPIO.output(pinLowL,GPIO.LOW)
         pwmL.ChangeDutyCycle(speedLeft)
-        print("[PWM] Left speed: " + str(speedLeft) + "%")
     elif speedLeft<0:
         GPIO.output(pinHighL,GPIO.LOW)
         GPIO.output(pinLowL,GPIO.HIGH)
         pwmL.ChangeDutyCycle(-speedLeft)
-        print("[PWM] Left speed: " + str(speedLeft) + "%")
     else:
         GPIO.output(pinHighL,GPIO.LOW)
         GPIO.output(pinLowL,GPIO.LOW)
         pwmL.ChangeDutyCycle(0)
-        print("[PWM] Left speed: " + str(speedLeft) + "%")
     if speedRight>0:
         GPIO.output(pinHighR,GPIO.HIGH)
         GPIO.output(pinLowR,GPIO.LOW)
         pwmR.ChangeDutyCycle(speedRight)
-        print("[PWM] Right speed: " + str(speedRight) + "%")
     elif speedRight<0:
         GPIO.output(pinHighR,GPIO.LOW)
         GPIO.output(pinLowR,GPIO.HIGH)
         pwmR.ChangeDutyCycle(-speedRight)
-        print("[PWM] Right speed: " + str(speedRight) + "%")
     else:
         GPIO.output(pinHighR,GPIO.LOW)
         GPIO.output(pinLowR,GPIO.LOW)
         pwmR.ChangeDutyCycle(0)
-        print("[PWM] Right speed: " + str(speedRight) + "%")
     #time.sleep(delayBetweenCommands)
 
 def stop():
@@ -116,7 +111,6 @@ def goForward(speed = 100):
     # Full-speed forward movement, unless a speed is given
     # Both motors will be set to the same speed
     global speedLeft, speedRight
-    print("goForward(" + str(speed) + ") called")
     speedLeft = speed
     speedRight = speed
     setSpeeds()
@@ -126,7 +120,6 @@ def goBackwards(speed = 100):
     # Both motors will be set to the same speed
     # Global speeds will be set to the local -speed, since we'll be going backwards
     global speedLeft, speedRight
-    print("goBackwards(" + str(speed) + ") called")
     speedLeft = -speed
     speedRight = -speed
     setSpeeds()
@@ -136,7 +129,6 @@ def manevra(speedL = 0, speedR = 0):
     # Speeds default to 0
     # Can specify individual speeds for one or both motors, positive for forward movement and negative for backward movement
     global speedLeft, speedRight
-    print("manevra(" + str(speedL) + ", " + str(speedR) + ") called")
     speedLeft = speedL
     speedRight = speedR
     setSpeeds()
@@ -144,18 +136,14 @@ def manevra(speedL = 0, speedR = 0):
 def manevraL(speed = 0):
     # Custom speed maneuver LEFT motor
     # Speed defaults to 0
-    # Adresses
     global speedLeft
-    print("manevraL(" + str(speed) +") called")
     speedLeft = speed
     setSpeeds()
 
 def manevraR(speed = 0):
-    # Custom speed maneuver LEFT motor
+    # Custom speed maneuver RIGHT motor
     # Speed defaults to 0
-    # Adresses
     global speedRight
-    print("manevraR(" + str(speed) +") called")
     speedRight = speed
     setSpeeds()
 
@@ -218,31 +206,6 @@ def sensorReadRaw():
 def sensorOutput():
     print(sensorValue)
 
-def calibrate():
-    global sensorValue, calibMax, calibMin
-    for j in range(0, calibCycles):
-        sensorReadRaw()
-        for i in range(0, sensorAmount):
-            if calibMax[i] < sensorValue[i]:
-                calibMax[i] = sensorValue[i]
-            if calibMin[i] > sensorValue[i] and sensorValue[i] > absoluteMinValue:
-                calibMin[i] = sensorValue[i]
-        print("Calibration: min=" + str(calibMin) + ", max=" + str(calibMax))
-        time.sleep(calibDelay)
-
-def sensorRead():
-    global sensorValue, calibMax, calibMin
-    sensorReadRaw()
-    for i in range(0, sensorAmount):
-        calibDelta = calibMax[i] - calibMin[i]
-        x = 0
-        if calibDelta != 0:
-            x = (sensorValue[i] - calibMin[i]) * 1000 / calibDelta
-        if x < 0:
-            x = 0
-        elif x>1000:
-            x = 1000
-        sensorValue[i] = int(x)
 
 ##################################
 ### Image processing functions ###
@@ -266,19 +229,18 @@ def get_frame(cap, scaling_factor):
 try:
     reset() # If the process gets killed in the middle of something, motors might still be rolling, so this resets whatever the robot is doing
     time.sleep(1) # Let's wait a second so the GPIO setup has some leeway to complete
-    calibrate()
     cap = cv2.VideoCapture(0)
     scaling_factor = 0.5
+    debugStringColor = ", no color info yet"
     print("Entering main loop:")
     while True:
         sensorReadRaw()
-        #if sensorValue[3]>250:manevra(-50, 100)
-        if sensorValue[5] > 290 or sensorValue[4] > 290:
-            manevra(0,100)
-        elif sensorValue[0] > 290 or sensorValue[1] > 290:
-            manevra(100, 0)
+        if sensorValue[7] < 235 or sensorValue[6] < 235 or sensorValue[5] < 235:
+            manevra(100,0)
+        elif sensorValue[0] < 235 or sensorValue[1] < 235 or sensorValue[2] < 235:
+            manevra(0, 100)
         else:
-            goForward(25)
+            goForward(50)
         sensorOutput()
 
         if currentTick % 3 == 0:
@@ -287,22 +249,18 @@ try:
             # Convert the HSV colorspace
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-            # Define 'blue' range in HSV colorspace
-            lower_green = np.array([40, 65, 60])
+            lower_green = np.array([32, 60, 55])
             upper_green = np.array([89, 255, 255])
 
             lower_red1 = np.array([150, 100, 70])
             upper_red1 = np.array([179, 255, 255])
             lower_red2 = np.array([0, 120, 100])
-            upper_red2 = np.array([10, 255, 255])
+            upper_red2 = np.array([20, 255, 255])
 
             lower_blue = np.array([90, 100, 70])
             upper_blue = np.array([128, 255, 255])
 
-            lower_yellow = np.array([20, 50, 60])
-            upper_yellow = np.array([35, 255, 255])
-
-            # Threshold the HSV image to get only blue color
+            # Generate and process the masks
             mask_green = cv2.inRange(hsv, lower_green, upper_green)
             mask_green = cv2.erode(mask_green, None, iterations=2)
             mask_green = cv2.dilate(mask_green, None, iterations=2)
@@ -319,16 +277,9 @@ try:
             mask_red2 = cv2.erode(mask_red2, None, iterations=2)
             mask_red2 = cv2.dilate(mask_red2, None, iterations=2)
 
-            mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
-            mask_yellow = cv2.erode(mask_yellow, None, iterations=2)
-            mask_yellow = cv2.dilate(mask_yellow, None, iterations=2)
-
-            # Bitwise-AND mask and original image
+            # Combine the two ends of red into one mask
             mask_red = cv2.bitwise_or(mask_red1, mask_red2)
-            #res = cv2.medianBlur(res, 5)
-
-            # find contours in the mask and initialize the current
-            # (x, y) center of the ball
+            
             cnts_green = cv2.findContours(mask_green.copy(), cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)[-2]
 
@@ -337,9 +288,6 @@ try:
 
             cnts_red = cv2.findContours(mask_red.copy(), cv2.RETR_EXTERNAL,
                                           cv2.CHAIN_APPROX_SIMPLE)[-2]
-
-            cnts_yellow = cv2.findContours(mask_yellow.copy(), cv2.RETR_EXTERNAL,
-                                          cv2.CHAIN_APPROX_SIMPLE)[-2]
             center_green = None
             center_blue = None
             center_red = None
@@ -347,93 +295,69 @@ try:
             radius_red = 0
             radius_green = 0
             radius_blue= 0
-            radius_yellow = 0
             x=0
             y=0
 
-            # only proceed if at least one contour was found
+            # If at least one contour is in the mask, make a circle around it
             if len(cnts_green) > 0:
-                # find the largest contour in the mask, then use
-                # it to compute the minimum enclosing circle and
-                # centroid
                 c = max(cnts_green, key=cv2.contourArea)
                 ((x, y), radius_green) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                center_green = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
             if len(cnts_blue) > 0:
-                # find the largest contour in the mask, then use
-                # it to compute the minimum enclosing circle and
-                # centroid
                 c = max(cnts_blue, key=cv2.contourArea)
                 ((x, y), radius_blue) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                center_blue = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
             if len(cnts_red) > 0:
-                # find the largest contour in the mask, then use
-                # it to compute the minimum enclosing circle and
-                # centroid
                 c = max(cnts_red, key=cv2.contourArea)
                 ((x, y), radius_red) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                center_red = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
-            if len(cnts_yellow) > 0:
-                # find the largest contour in the mask, then use
-                # it to compute the minimum enclosing circle and
-                # centroid
-                c = max(cnts_yellow, key=cv2.contourArea)
-                ((x, y), radius_yellow) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                center_yellow = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-
+            
+            # Uncomment for visual debug
+            
             '''cv2.imshow('Original image', frame)
             cv2.imshow('Green', mask_green)
             cv2.imshow('Blue', mask_blue)
-            cv2.imshow('Red', mask_red)
-            cv2.imshow('Yellow', mask_yellow)'''
-            radius_max = max(radius_blue, radius_green, radius_red, radius_yellow)
+            cv2.imshow('Red', mask_red)'''
+            
+            radius_max = max(radius_blue, radius_green, radius_red)
             if radius_max > 10:
                 if radius_max == radius_blue:
-                    print("max: blue, radius=" + str(radius_max))
-                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                               (0, 255, 255), 2)
-                    cv2.circle(frame, center_blue, 5, (0, 0, 255), -1)
+                    debugStringColor = ",max=blue,radius=" + str(int(radius_max))
                 elif radius_max == radius_red:
-                    print("max: red, radius=" + str(radius_max))
-                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                               (0, 255, 255), 2)
-                    cv2.circle(frame, center_red, 5, (0, 0, 255), -1)
+                    debugStringColor = ",max=red,radius=" + str(int(radius_max))
                 elif radius_max == radius_green:
-                    print("max: green, radius=" + str(radius_max))
-                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                               (0, 255, 255), 2)
-                    cv2.circle(frame, center_green, 5, (0, 0, 255), -1)
-                elif radius_max == radius_yellow:
-                    print("max: yellow, radius=" + str(radius_max))
-                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                               (0, 255, 255), 2)
-                    cv2.circle(frame, center_yellow, 5, (0, 0, 255), -1)
-            if radius_max > 80:
-                if radius_max == radius_red:
-                    speedMultiplier = 0
-                    currentMode = 1
+                    debugStringColor = ",max=green,radius=" + str(int(radius_max))
+            if radius_max > 70:
+                if radius_max == radius_red and (currentMode == 0 or currentMode == 1) and currentTick - currentModeStartTick >= 150:
+                    speedMultiplier = 0.0
+                    currentMode = 2
                     currentModeStartTick = currentTick
+                if radius_max == radius_green and (currentMode == 0 or currentMode == 1) and currentTick - currentModeStartTick >= 150:
+                    speedMultiplier = 0.30
+                    currentMode = 3
+                    currentModeStartTick = currentTick
+                if radius_max == radius_blue and currentTick - currentModeStartTick >= 150:
+                    speedMultiplier = 0.45
+                    currentMode = 1
+                    
 
-            if currentMode == 1 and currentTick - currentModeStartTick >= 20:
-                speedMultiplier = 1
+            if currentMode == 2 and currentTick - currentModeStartTick >= 50:
+                speedMultiplier = 1.0
                 currentMode = 0
                 currentModeStartTick = currentTick
+            if currentMode == 3 and currentTick - currentModeStartTick >= 100:
+                speedMultiplier = 1.0
+                currentMode = 0
+                currentModeStartTick = currentTick
+            
 
 
-            # Check if the user pressed ESC key
-            c = cv2.waitKey(5)
+            '''# Check if the user pressed ESC key
+            c = cv2.waitKey(1)
             if c == 27:
-                break
+                break'''
+        debugString = "tick=" + str(currentTick) + ",mode=" + str(currentMode) + ",modeStart=" + str(currentModeStartTick) + ",speedMultip=" + str(speedMultiplier) + debugStringColor
+        print(debugString)
         currentTick += 1
         #time.sleep(loopDelay)
     cv2.destroyAllWindows()
 except AttributeError:
     pass
-# Write sum code here
+ 
