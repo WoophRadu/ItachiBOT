@@ -53,6 +53,15 @@ sensorValue = [0,0,0,0,0,0]
 calibMax = [0,0,0,0,0,0]
 calibMin = [1000, 1000,1000,1000,1000,1000]
 speedMultiplier = 1
+currentTick = 0
+currentMode = 0
+currentModeStartTick = 0
+
+# Mode list:
+# 0 normal, unrestricted, full speed
+# 1 speed limited by road sign
+# 2 stopped by STOP road sign
+# 3 GIVE WAY speed limited
 
 ###################################
 ### Motor Controlling Functions ###
@@ -271,155 +280,158 @@ try:
         else:
             goForward(25)
         sensorOutput()
-        
-        frame = get_frame(cap, scaling_factor)
 
-        # Convert the HSV colorspace
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        if currentTick % 3 == 0:
+            frame = get_frame(cap, scaling_factor)
 
-        # Define 'blue' range in HSV colorspace
-        lower_green = np.array([40, 65, 60])
-        upper_green = np.array([89, 255, 255])
+            # Convert the HSV colorspace
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        lower_red1 = np.array([150, 100, 70])
-        upper_red1 = np.array([179, 255, 255])
-        lower_red2 = np.array([0, 120, 100])
-        upper_red2 = np.array([10, 255, 255])
+            # Define 'blue' range in HSV colorspace
+            lower_green = np.array([40, 65, 60])
+            upper_green = np.array([89, 255, 255])
 
-        lower_blue = np.array([90, 100, 70])
-        upper_blue = np.array([128, 255, 255])
+            lower_red1 = np.array([150, 100, 70])
+            upper_red1 = np.array([179, 255, 255])
+            lower_red2 = np.array([0, 120, 100])
+            upper_red2 = np.array([10, 255, 255])
 
-        lower_yellow = np.array([20, 50, 60])
-        upper_yellow = np.array([35, 255, 255])
+            lower_blue = np.array([90, 100, 70])
+            upper_blue = np.array([128, 255, 255])
 
-        # Threshold the HSV image to get only blue color
-        mask_green = cv2.inRange(hsv, lower_green, upper_green)
-        mask_green = cv2.erode(mask_green, None, iterations=2)
-        mask_green = cv2.dilate(mask_green, None, iterations=2)
+            lower_yellow = np.array([20, 50, 60])
+            upper_yellow = np.array([35, 255, 255])
 
-        mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
-        mask_blue = cv2.erode(mask_blue, None, iterations=2)
-        mask_blue = cv2.dilate(mask_blue, None, iterations=2)
+            # Threshold the HSV image to get only blue color
+            mask_green = cv2.inRange(hsv, lower_green, upper_green)
+            mask_green = cv2.erode(mask_green, None, iterations=2)
+            mask_green = cv2.dilate(mask_green, None, iterations=2)
 
-        mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
-        mask_red1 = cv2.erode(mask_red1, None, iterations=2)
-        mask_red1 = cv2.dilate(mask_red1, None, iterations=2)
+            mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
+            mask_blue = cv2.erode(mask_blue, None, iterations=2)
+            mask_blue = cv2.dilate(mask_blue, None, iterations=2)
 
-        mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
-        mask_red2 = cv2.erode(mask_red2, None, iterations=2)
-        mask_red2 = cv2.dilate(mask_red2, None, iterations=2)
+            mask_red1 = cv2.inRange(hsv, lower_red1, upper_red1)
+            mask_red1 = cv2.erode(mask_red1, None, iterations=2)
+            mask_red1 = cv2.dilate(mask_red1, None, iterations=2)
 
-        mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
-        mask_yellow = cv2.erode(mask_yellow, None, iterations=2)
-        mask_yellow = cv2.dilate(mask_yellow, None, iterations=2)
+            mask_red2 = cv2.inRange(hsv, lower_red2, upper_red2)
+            mask_red2 = cv2.erode(mask_red2, None, iterations=2)
+            mask_red2 = cv2.dilate(mask_red2, None, iterations=2)
 
-        # Bitwise-AND mask and original image
-        mask_red = cv2.bitwise_or(mask_red1, mask_red2)
-        #res = cv2.medianBlur(res, 5)
+            mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
+            mask_yellow = cv2.erode(mask_yellow, None, iterations=2)
+            mask_yellow = cv2.dilate(mask_yellow, None, iterations=2)
 
-        # find contours in the mask and initialize the current
-        # (x, y) center of the ball
-        cnts_green = cv2.findContours(mask_green.copy(), cv2.RETR_EXTERNAL,
-                                cv2.CHAIN_APPROX_SIMPLE)[-2]
+            # Bitwise-AND mask and original image
+            mask_red = cv2.bitwise_or(mask_red1, mask_red2)
+            #res = cv2.medianBlur(res, 5)
 
-        cnts_blue = cv2.findContours(mask_blue.copy(), cv2.RETR_EXTERNAL,
-                                      cv2.CHAIN_APPROX_SIMPLE)[-2]
+            # find contours in the mask and initialize the current
+            # (x, y) center of the ball
+            cnts_green = cv2.findContours(mask_green.copy(), cv2.RETR_EXTERNAL,
+                                    cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-        cnts_red = cv2.findContours(mask_red.copy(), cv2.RETR_EXTERNAL,
-                                      cv2.CHAIN_APPROX_SIMPLE)[-2]
+            cnts_blue = cv2.findContours(mask_blue.copy(), cv2.RETR_EXTERNAL,
+                                          cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-        cnts_yellow = cv2.findContours(mask_yellow.copy(), cv2.RETR_EXTERNAL,
-                                      cv2.CHAIN_APPROX_SIMPLE)[-2]
-        center_green = None
-        center_blue = None
-        center_red = None
-        center_yellow = None
-        radius_red = 0
-        radius_green = 0
-        radius_blue= 0
-        radius_yellow = 0
-        x=0
-        y=0
+            cnts_red = cv2.findContours(mask_red.copy(), cv2.RETR_EXTERNAL,
+                                          cv2.CHAIN_APPROX_SIMPLE)[-2]
 
-        # only proceed if at least one contour was found
-        if len(cnts_green) > 0:
-            # find the largest contour in the mask, then use
-            # it to compute the minimum enclosing circle and
-            # centroid
-            c = max(cnts_green, key=cv2.contourArea)
-            ((x, y), radius_green) = cv2.minEnclosingCircle(c)
-            M = cv2.moments(c)
-            center_green = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            cnts_yellow = cv2.findContours(mask_yellow.copy(), cv2.RETR_EXTERNAL,
+                                          cv2.CHAIN_APPROX_SIMPLE)[-2]
+            center_green = None
+            center_blue = None
+            center_red = None
+            center_yellow = None
+            radius_red = 0
+            radius_green = 0
+            radius_blue= 0
+            radius_yellow = 0
+            x=0
+            y=0
 
-        if len(cnts_blue) > 0:
-            # find the largest contour in the mask, then use
-            # it to compute the minimum enclosing circle and
-            # centroid
-            c = max(cnts_blue, key=cv2.contourArea)
-            ((x, y), radius_blue) = cv2.minEnclosingCircle(c)
-            M = cv2.moments(c)
-            center_blue = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            # only proceed if at least one contour was found
+            if len(cnts_green) > 0:
+                # find the largest contour in the mask, then use
+                # it to compute the minimum enclosing circle and
+                # centroid
+                c = max(cnts_green, key=cv2.contourArea)
+                ((x, y), radius_green) = cv2.minEnclosingCircle(c)
+                M = cv2.moments(c)
+                center_green = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
-        if len(cnts_red) > 0:
-            # find the largest contour in the mask, then use
-            # it to compute the minimum enclosing circle and
-            # centroid
-            c = max(cnts_red, key=cv2.contourArea)
-            ((x, y), radius_red) = cv2.minEnclosingCircle(c)
-            M = cv2.moments(c)
-            center_red = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            if len(cnts_blue) > 0:
+                # find the largest contour in the mask, then use
+                # it to compute the minimum enclosing circle and
+                # centroid
+                c = max(cnts_blue, key=cv2.contourArea)
+                ((x, y), radius_blue) = cv2.minEnclosingCircle(c)
+                M = cv2.moments(c)
+                center_blue = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
-        if len(cnts_yellow) > 0:
-            # find the largest contour in the mask, then use
-            # it to compute the minimum enclosing circle and
-            # centroid
-            c = max(cnts_yellow, key=cv2.contourArea)
-            ((x, y), radius_yellow) = cv2.minEnclosingCircle(c)
-            M = cv2.moments(c)
-            center_yellow = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+            if len(cnts_red) > 0:
+                # find the largest contour in the mask, then use
+                # it to compute the minimum enclosing circle and
+                # centroid
+                c = max(cnts_red, key=cv2.contourArea)
+                ((x, y), radius_red) = cv2.minEnclosingCircle(c)
+                M = cv2.moments(c)
+                center_red = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
-        '''cv2.imshow('Original image', frame)
-        cv2.imshow('Green', mask_green)
-        cv2.imshow('Blue', mask_blue)
-        cv2.imshow('Red', mask_red)
-        cv2.imshow('Yellow', mask_yellow)'''
-        radius_max = max(radius_blue, radius_green, radius_red, radius_yellow)
-        if radius_max > 10:
-            if radius_max==radius_blue:
-                print("max: blue, radius=" + str(radius_max))
-                cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                           (0, 255, 255), 2)
-                cv2.circle(frame, center_blue, 5, (0, 0, 255), -1)
-            elif radius_max==radius_red:
-                print("max: red, radius=" + str(radius_max))
-                cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                           (0, 255, 255), 2)
-                cv2.circle(frame, center_red, 5, (0, 0, 255), -1)
-            elif radius_max==radius_green:
-                print("max: green, radius=" + str(radius_max))
-                cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                           (0, 255, 255), 2)
-                cv2.circle(frame, center_green, 5, (0, 0, 255), -1)
-            elif radius_max==radius_yellow:
-                print("max: yellow, radius=" + str(radius_max))
-                cv2.circle(frame, (int(x), int(y)), int(radius_max),
-                           (0, 255, 255), 2)
-                cv2.circle(frame, center_yellow, 5, (0, 0, 255), -1)
-        if radius_max > 100:
-            if radius_max==radius_blue:
-                speedMultiplier = 0.33
-            elif radius_max==radius_red:
+            if len(cnts_yellow) > 0:
+                # find the largest contour in the mask, then use
+                # it to compute the minimum enclosing circle and
+                # centroid
+                c = max(cnts_yellow, key=cv2.contourArea)
+                ((x, y), radius_yellow) = cv2.minEnclosingCircle(c)
+                M = cv2.moments(c)
+                center_yellow = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+
+            '''cv2.imshow('Original image', frame)
+            cv2.imshow('Green', mask_green)
+            cv2.imshow('Blue', mask_blue)
+            cv2.imshow('Red', mask_red)
+            cv2.imshow('Yellow', mask_yellow)'''
+            radius_max = max(radius_blue, radius_green, radius_red, radius_yellow)
+            if radius_max > 10:
+                if radius_max == radius_blue:
+                    print("max: blue, radius=" + str(radius_max))
+                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
+                               (0, 255, 255), 2)
+                    cv2.circle(frame, center_blue, 5, (0, 0, 255), -1)
+                elif radius_max == radius_red:
+                    print("max: red, radius=" + str(radius_max))
+                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
+                               (0, 255, 255), 2)
+                    cv2.circle(frame, center_red, 5, (0, 0, 255), -1)
+                elif radius_max == radius_green:
+                    print("max: green, radius=" + str(radius_max))
+                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
+                               (0, 255, 255), 2)
+                    cv2.circle(frame, center_green, 5, (0, 0, 255), -1)
+                elif radius_max == radius_yellow:
+                    print("max: yellow, radius=" + str(radius_max))
+                    cv2.circle(frame, (int(x), int(y)), int(radius_max),
+                               (0, 255, 255), 2)
+                    cv2.circle(frame, center_yellow, 5, (0, 0, 255), -1)
+            if radius_max > 80:
+                if radius_max == radius_red:
+                    speedMultiplier = 0
+                    currentMode = 1
+                    currentModeStartTick = currentTick
+
+            if currentMode == 1 and currentTick - currentModeStartTick >= 20:
                 speedMultiplier = 1
-            
-        cv2.circle(frame, center_green, 5, (0, 0, 255), -1)
+                currentMode = 0
+                currentModeStartTick = currentTick
 
-        # Check if the user pressed ESC key
-        c = cv2.waitKey(5)
-        if c == 27:
-            break
 
-        
-        
+            # Check if the user pressed ESC key
+            c = cv2.waitKey(5)
+            if c == 27:
+                break
+        currentTick += 1
         #time.sleep(loopDelay)
     cv2.destroyAllWindows()
 except AttributeError:
